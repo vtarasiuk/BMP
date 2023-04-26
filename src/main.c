@@ -2,11 +2,12 @@
 #include <stdlib.h>
 
 #include "bmp.h"
+#include "transformations.h"
 
 int main()
 {
   // Open file
-  FILE* file = fopen("./assets/square.2x3.bmp", "r");
+  FILE* file = fopen("./assets/cherry.bmp", "rb");
   if (file == NULL)
   {
     printf("Can not open file\n");
@@ -38,22 +39,32 @@ int main()
   printf("num_colors: %d\n", result->header->num_colors);
   printf("important_colors: %d\n", result->header->important_colors);
 
-  for (size_t i = 0; i < result->header->height * result->header->width; i++)
-  {
-    printf("Pixel[%zu]\n", i);
-    printf("\tR: %d\n", result->data[i].red);
-    printf("\tG: %d\n", result->data[i].green);
-    printf("\tB: %d\n", result->data[i].blue);
-  }
 
-  FILE *output = fopen("output.bmp", "w");
-  bool res = write_bmp(output, result);
-  
-  printf("%d\n", write_bmp(file, result));
-  printf("Size: %zu\n", sizeof(struct bmp_header));
-  
-  // free all the memory
+
+  // struct bmp_image* rotated_image = rotate_right(result);
+  // FILE *out = fopen("right.bmp", "wb");
+  // printf("Write: %d\n", write_bmp(out, rotated_image));
+  // free_bmp_image(rotated_image);
+  // fclose(out);
+
+  // struct bmp_image* rotated_left_image = rotate_left(result);
+  // FILE *out2 = fopen("left.bmp", "wb");
+  // printf("Write: %d\n", write_bmp(out2, rotated_left_image));
+  // free_bmp_image(rotated_left_image);
+  // fclose(out2);
+
+  struct bmp_image* crop_image = crop(result, 0, 100, 192, 156);
+  FILE *out3 = fopen("crop.bmp", "wb");
+  printf("Write: %d\n", write_bmp(out3, crop_image));
+  free_bmp_image(crop_image);
+  fclose(out3);
+
+  struct bmp_image* resize_image = scale(result, 0.5);
+  FILE *out4 = fopen("resize.bmp", "wb");
+  printf("Write: %d\n", write_bmp(out4, resize_image));
+  free_bmp_image(resize_image);
+  fclose(out4);
+
   free_bmp_image(result);
-  fclose(output);
   fclose(file);
 }

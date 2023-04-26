@@ -11,12 +11,12 @@ struct bmp_header* read_bmp_header(FILE* stream) // TODO: corrupted stream | NOT
   
   // Check if a stream position is valid
   const long current_pos = ftell(stream);
-  if (current_pos == -1L || current_pos == EOF)
-  {
-    return NULL;
-  }
   // Set position index to zero
-  if (current_pos != 0) fseek(stream, 0, SEEK_SET);
+  if (current_pos != -1L && current_pos != 0)
+  {
+    fseek(stream, 0, SEEK_SET);
+  }
+
   // Allocate memory for header
   struct bmp_header *header = malloc( sizeof(struct bmp_header) );
   if (header == NULL)
@@ -41,6 +41,15 @@ struct pixel* read_data(FILE* stream, const struct bmp_header* header)
   {
     return NULL;
   }
+
+  // Check if a stream position is valid
+  // Set position index to pixels section
+  const long current_pos = ftell(stream);
+  if (current_pos != -1L && current_pos != 54) // OFFSET FIX
+  {
+    fseek(stream, 54, SEEK_SET);
+  }
+
   // Allocating mamory for pixels of the bmp file
   struct pixel* pixels = malloc( sizeof(struct pixel) * header->height * header->width );
   if (pixels == NULL)
@@ -48,18 +57,18 @@ struct pixel* read_data(FILE* stream, const struct bmp_header* header)
     return NULL;
   }
 
-  for (uint32_t i = 0; i < header->height; i++)
+  // Determine and add padding
+  const size_t padding = header->width % 4;
+  // Read all pixels from a stream
+  for (uint32_t i = 0; i < header->height; i++) // NOTE : REDESIGN WITH ONE FOR LOOP
   {
-    // Read one row at each iteration
     if (fread(&pixels[i * header->width], sizeof(struct pixel), header->width, stream) != header->width)
     {
       free(pixels);
       return NULL;
     }
     
-    // Determine and add padding
-    const uint8_t padding = header->width % 4;
-    fseek(stream, padding, SEEK_CUR);
+    if (padding != 0 && i % 1 == 0) fseek(stream, padding, SEEK_CUR);
   }
 
   return pixels;
@@ -72,6 +81,12 @@ struct bmp_image* read_bmp(FILE* stream)
   {
     fprintf(stderr, "Error: stream is NULL\n");
     return NULL;
+  }
+
+  long int current_pos = ftell(stream);
+  if (current_pos != -1 && current_pos != 0)
+  {
+    fseek(stream, 0, SEEK_SET); 
   }
 
   // Allocate memory for the image
@@ -124,7 +139,7 @@ void free_bmp_image(struct bmp_image* image)
   free(image);
 }
 
-bool write_bmp(FILE* stream, const struct bmp_image* image)
+bool write_bmp(FILE* stream, const struct bmp_image* image) // CHECK STREAM IS ZERO
 {
   if (stream == NULL || image == NULL)
   {
