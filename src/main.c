@@ -7,7 +7,7 @@
 int main()
 {
   // Open file
-  FILE* file = fopen("./assets/cherry.bmp", "rb");
+  FILE* file = fopen("./assets/phantom.f4.i.bmp", "rb");
   if (file == NULL)
   {
     printf("Can not open file\n");
@@ -60,10 +60,20 @@ int main()
   fclose(out3);
 
   struct bmp_image* resize_image = scale(result, 0.5);
-  FILE *out4 = fopen("resize.bmp", "wb");
-  printf("Write: %d\n", write_bmp(out4, resize_image));
+  FILE *out4 = fopen("resize2.bmp", "wb");
+  printf("1: %d\n", resize_image->header->width);
+  printf("2: %d\n", resize_image->header->height);
+  printf("2: %d\n", resize_image->header->size);
+  printf("2: %d\n", resize_image->header->image_size);
+  printf("Write resize: %d\n", write_bmp(out4, resize_image));
   free_bmp_image(resize_image);
   fclose(out4);
+
+  struct bmp_image* extract_image = extract(result, "rb");
+  FILE *out5 = fopen("extract.bmp", "wb");
+  printf("Write: %d\n", write_bmp(out5, extract_image));
+  free_bmp_image(extract_image);
+  fclose(out5);
 
   free_bmp_image(result);
   fclose(file);

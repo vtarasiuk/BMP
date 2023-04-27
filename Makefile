@@ -1,5 +1,5 @@
 CC=clang
-CFLAGS=
+CFLAGS=-Wall -Werror
 BIN=./bin/bmp
 
 all: bmp

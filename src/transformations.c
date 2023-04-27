@@ -25,7 +25,8 @@ static struct bmp_header *create_bmp_header_copy(const struct bmp_header *origin
   // printf("new height: %d\n", new_height);
   // printf("new height: %d\n", copy->height);
   
-  const uint32_t new_image_size = (copy->width * copy->bpp + 31) / 32 * 4 * copy->height;
+  const uint32_t new_image_size = (copy->width * copy->height * 3) + copy->height * (copy->width % 4);
+
   if (new_image_size != copy->image_size)
   {
     copy->image_size = new_image_size;
@@ -184,16 +185,28 @@ struct bmp_image* rotate_right(const struct bmp_image* image)
   return rotated;
 }
 
+/**
+ * Remove unwanted outer area from image.
+ *
+ * Creates copy of image containing only selected rectangular area.
+ *
+ * @arg image the image
+ * @arg start_y top-left corner position on y-axis of selected area in the range <0, image->height>
+ * @arg start_x top-left corner position on x-axis of selected area in the range <0, image->width>
+ * @arg height the height of selected area in pixels in the range <1, image->height>
+ * @arg width the width of selected area in pixels in the range <1, image->width>
+ * @return the copy of image containing only selected area or null, if there is no image (NULL given) or area position is out of range
+ */
 struct bmp_image* crop(const struct bmp_image* image, const uint32_t start_y, const uint32_t start_x, const uint32_t height, const uint32_t width)
 {
   if (image == NULL || image->header == NULL || image->data == NULL)
   {
     return NULL;
   }
-  // printf("start_y: %d\n", start_y);
-  // printf("start_x: %d\n", start_x);
-  // printf("heihght: %d\n", height);
-  // printf("widht: %d\n", width);
+  printf("start_y: %d\n", start_y);
+  printf("start_x: %d\n", start_x);
+  printf("heihght: %d\n", height);
+  printf("widht: %d\n", width);
   const uint32_t width_global = image->header->width;
   const uint32_t height_global = image->header->height;
 
@@ -216,17 +229,23 @@ struct bmp_image* crop(const struct bmp_image* image, const uint32_t start_y, co
   // printf("x: %d\n", start_x);
   // printf("y: %d\n", y);
 
-  for (uint32_t i = 0, yi = y; i < height; i++, yi++)
+   for (uint32_t i = 0; i < height; i++)
+  {
+    const uint32_t source_row_index = y - i;
+    const uint32_t dest_row_index = height - i - 1;
+    const struct pixel *source_row_start = image->data + (source_row_index * width_global) + start_x;
+    struct pixel *dest_row_start = result->data + (dest_row_index * width);
+    memcpy(dest_row_start, source_row_start, sizeof(struct pixel) * width);
+  }
+
+  /*
+  for (uint32_t i = 0, yi = y; i < height; i++, yi--)
   {
     for (uint32_t j = 0, xi = start_x; j < width; j++, xi++)
     {
       if (xi >= width_global)
       {
         xi = 0;
-      }
-      if (yi >= height_global)
-      {
-        yi = 0;
       }
       const uint32_t dest_index = i * width + j;
       const uint32_t source_index = yi * width_global + xi;
@@ -235,8 +254,8 @@ struct bmp_image* crop(const struct bmp_image* image, const uint32_t start_y, co
 
       result->data[dest_index] = image->data[source_index];
     }
-    
   }
+  */
   
   return result; // IF IMAGE DID ALLOCATE MEMORY BUT NOT SET, WRITE FUNC DROPS
 }
@@ -244,7 +263,7 @@ struct bmp_image* crop(const struct bmp_image* image, const uint32_t start_y, co
 
 struct bmp_image* scale(const struct bmp_image* image, float factor)
 {
-  if (image == NULL || image->header == NULL || image->data == NULL || factor <= 0)
+  if (image == NULL || image->header == NULL || image->data == NULL || factor < 0)
   {
     return NULL;
   }
@@ -252,25 +271,123 @@ struct bmp_image* scale(const struct bmp_image* image, float factor)
   const uint32_t new_width = round(image->header->width * factor);
   const uint32_t new_height = round(image->header->height * factor);
 
+  if (new_width == 0 || new_height == 0)
+  {
+    return NULL;
+  }
+
   struct bmp_image *result = create_image_copy(image, new_height, new_width);
   if (result == NULL)
   {
     return NULL;
   }
 
-  // printf("height: %d\n", result->header->height);
-  // printf("width: %d\n", result->header->width);
+  printf("height: %d\n", result->header->height);
+  printf("width: %d\n", result->header->width);
 
   const size_t result_size = result->header->width * result->header->height;
   const size_t initial_size = image->header->width * image->header->height;
   
-  // Set values to the result array
-  for (size_t i = 0; i < result_size; i++)
+  printf("Result_size: %zu\n", result_size);
+  printf("Initial size: %zu\n", initial_size);
+
+  // if (result_size > initial_size)
+  // {
+  //   for (uint32_t i = 0; i < result->header->height; i++)
+  //   {
+  //     for (uint32_t j = 0; j < result->header->width; j++)
+  //     {
+  //       const uint32_t x_initial = image->header->width * j / result->header->width;
+  //       const uint32_t y_initial = image->header->height * i / result->header->height;
+
+  //       printf("x_init: %d\n", x_initial);
+  //       printf("y_init: %d\n", y_initial);
+  //       printf("source_pos: %d\n\n", y_initial * image->header->width + x_initial);
+  //     }
+      
+  //   }
+    
+  // }
+
+  for (int j = 0, old_j = 0; j < result->header->width; j++, old_j = j * image->header->width / result->header->width)
   {
-    const uint32_t index_in_original = initial_size * i / result_size;
-    // printf("index: %d\n", index_in_original);
-    result->data[i] = image->data[index_in_original];
+    for (int i = 0, old_i = 0; i < result->header->height; i++, old_i = i * image->header->height / result->header->height)
+    {
+      printf("source index: %d\n", image->header->width * old_i + old_j);
+      printf("dest index: %d\n\n", result->header->width * i + j);
+      result->data[result->header->width * i + j] = image->data[image->header->width * old_i + old_j];
+    }
+  }
+  // free_bmp_image(result);
+  return result;
+}
+
+
+struct bmp_image* extract(const struct bmp_image* image, const char* colors_to_keep)
+{
+  if (image == NULL || image->header == NULL || image->data == NULL || colors_to_keep == NULL)
+  {
+    return NULL;
   }
 
-  return result;
+  bool red_keep = false, green_keep = false, blue_keep = false;
+
+  uint8_t index = 0;
+  while (colors_to_keep[index] != '\0')
+  {
+    switch (colors_to_keep[index])
+    {
+      case 'r':
+        if (red_keep)
+        {
+          return NULL;
+        }
+        red_keep = true;
+        break;
+      
+      case 'g':
+        if (green_keep) return NULL;
+        green_keep = true;
+        break;
+      
+      case 'b':
+        if (blue_keep) return NULL;
+        blue_keep = true;
+        break;
+      
+      default:
+        return NULL;
+    }
+    index++;
+  }
+
+  // Get copy of the initial image
+  struct bmp_image *result_image = create_image_copy(image, image->header->height, image->header->width);
+  if (result_image == NULL)
+  {
+    return NULL;
+  }
+
+  for (uint32_t i = 0; i < image->header->height; i++)
+  {
+    for (uint32_t j = 0; j < image->header->width; j++)
+    {
+      const uint32_t index = i * image->header->width + j;
+      result_image->data[index] = image->data[index];
+      if (!red_keep)
+      {
+        result_image->data[index].red = 0;
+      }
+      if (!green_keep)
+      {
+        result_image->data[index].green = 0;
+      }
+      if (!blue_keep)
+      {
+        result_image->data[index].blue = 0;
+      }
+    }
+  }
+  
+  return result_image;
 }
