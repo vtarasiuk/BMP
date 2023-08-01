@@ -2,13 +2,8 @@
 
 BMP filter.
 
-Installation
+# Installation
+make
 
-make all
-
-Usage
-
+# Usage
 ./bin/bmp
-
-Directory structure
-...
